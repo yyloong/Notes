@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ELBO</title>
+  <script>
+    MathJax = {
+      loader: {
+        load: ['[tex]/textmacros']
+      },
+      tex: {
+        packages: {'[+]': ['textmacros']},
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        tags: 'none',
+        macros: {
+          piold: '\\pi_{\\theta_\\mathrm{old}}',
+          pinew: '\\pi_{\\theta}'
+        }
+      },
+      options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] }
+    };
+  </script>
+  <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+  <style>
+
+    :root {
+      --bg:       #e8f2fc;
+      --surface:  #e4eef9;
+      --surface2: #d7e8f8;
+      --border:   #a8c8ef;
+      --c1: #2563eb;
+      --c5: #0284c7;
+      --text:  #1e3a5f;
+      --muted: #4a6fa5;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background:
+        radial-gradient(ellipse 120% 80% at 50% -20%, rgba(147,197,253,.35), transparent 55%),
+        var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      line-height: 1.7;
+      padding: 2.5rem 1.5rem 4rem;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 2.2rem;
+      max-width: min(1920px, 98vw);
+      margin-left: auto;
+      margin-right: auto;
+    }
+    header h1 {
+      font-size: 1.85rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--c1) 0%, var(--c5) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: .02em;
+    }
+    header .subtitle {
+      color: var(--muted);
+      margin-top: .45rem;
+      font-size: .9rem;
+    }
+
+    /* ── 正文（无表格或表格前后混排）── */
+    main.md-content {
+      max-width: min(1920px, 98vw);
+      margin: 0 auto;
+      padding: 1.2rem 0 2rem;
+      font-size: .95rem;
+      line-height: 1.75;
+      color: var(--text);
+    }
+    .md-content > *:first-child { margin-top: 0; }
+    .md-content h1 {
+      font-size: 1.55rem;
+      margin: 1.4em 0 0.55em;
+      color: #1e3a8a;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: .35rem;
+    }
+    .md-content h2 {
+      font-size: 1.28rem;
+      margin: 1.25em 0 0.5em;
+      color: #1d4ed8;
+    }
+    .md-content h3 {
+      font-size: 1.1rem;
+      margin: 1.1em 0 0.45em;
+      color: #2563eb;
+    }
+    .md-content h4, .md-content h5, .md-content h6 {
+      margin: 1em 0 0.4em;
+      color: var(--text);
+    }
+    .md-content p { margin: 0.65em 0; }
+    .md-content ul, .md-content ol {
+      margin: 0.6em 0 0.6em 1.35rem;
+    }
+    .md-content li { margin: 0.35em 0; }
+    .md-content li::marker { color: var(--c5); }
+    .md-content a {
+      color: #0369a1;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(3,105,161,.35);
+    }
+    .md-content a:hover {
+      color: #0c4a6e;
+      border-bottom-color: #0c4a6e;
+    }
+    .md-content blockquote {
+      margin: 1rem 0;
+      padding: .65rem 1rem .65rem 1rem;
+      border-left: 4px solid var(--c1);
+      background: color-mix(in srgb, var(--c1) 6%, var(--surface));
+      border-radius: 0 var(--radius) var(--radius) 0;
+      color: #2c4a6e;
+    }
+    .md-content blockquote p { margin: 0.4em 0; }
+    .md-content code {
+      font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+      font-size: .88em;
+      background: var(--surface2);
+      padding: .12em .4em;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+    .md-content pre {
+      margin: 1rem 0;
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 2px 8px rgba(37,99,235,.06);
+    }
+    .md-content pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: .84rem;
+      line-height: 1.55;
+    }
+    .md-content hr {
+      border: none;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 2rem 0;
+    }
+    .md-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .md-content mjx-container[display="true"] {
+      margin: 0.65em 0 !important;
+    }
+
+    /* ── Markdown 表格（GFM）── */
+    .tbl-wrap {
+      margin: 1.25rem auto;
+      overflow-x: auto;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow:
+        0 4px 6px -1px rgba(30,58,95,.06),
+        0 12px 28px -4px rgba(37,99,235,.12);
+    }
+    .tbl-wrap-md table.md-table {
+      width: 100%;
+      min-width: min(100%, max-content);
+      border-collapse: collapse;
+      background: var(--surface);
+      font-size: .88rem;
+    }
+    .tbl-wrap-md thead tr { background: var(--surface2); }
+    .tbl-wrap-md th {
+      padding: .55rem .75rem;
+      text-align: left;
+      font-weight: 700;
+      font-size: .78rem;
+      letter-spacing: .04em;
+      color: var(--muted);
+      border-bottom: 2px solid var(--border);
+      vertical-align: top;
+    }
+    .tbl-wrap-md td {
+      padding: .5rem .75rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+      line-height: 1.55;
+    }
+    .tbl-wrap-md tbody tr {
+      transition: background .12s;
+    }
+    .tbl-wrap-md tbody tr:hover {
+      background: rgba(219,234,254,.4);
+    }
+    .tbl-wrap-md tbody tr:last-child td { border-bottom: none; }
+    .tbl-wrap-md .formula-cell { overflow-x: auto; }
+    .tbl-wrap-md .formula-cell mjx-container[display="true"] {
+      margin: 0.2em 0 !important;
+    }
+
+    /* 文末脚注块（若用 blockquote 模拟）*/
+    .md-content > blockquote:last-of-type {
+      margin-top: 2rem;
+    }
+
+    /* ── 子页返回目录 ── */
+    nav.site-back {
+      max-width: min(1920px, 98vw);
+      margin: -0.8rem auto 1.25rem;
+      padding: 0 0.15rem;
+      font-size: .88rem;
+    }
+    nav.site-back a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      color: #0369a1;
+      text-decoration: none;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(3,105,161,.3);
+      padding-bottom: 0.1rem;
+    }
+    nav.site-back a:hover {
+      color: #0c4a6e;
+      border-bottom-color: #0c4a6e;
+    }
+
+    /* ── 批量目录页 ── */
+    .catalog-main { padding-top: 0.5rem; }
+    .catalog-hint {
+      color: var(--muted);
+      font-size: .88rem;
+      margin-bottom: 1.1rem !important;
+    }
+    ul.catalog-list {
+      list-style: none;
+      margin: 0 !important;
+      padding: 0 !important;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+    ul.catalog-list li {
+      margin: 0 !important;
+    }
+    ul.catalog-list a {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      padding: 0.75rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 2px 6px rgba(37,99,235,.05);
+      text-decoration: none !important;
+      border-bottom: 1px solid var(--border) !important;
+      transition: background .15s, box-shadow .15s, border-color .15s;
+    }
+    ul.catalog-list a:hover {
+      background: #dbeafe;
+      border-color: #93c5fd !important;
+      box-shadow: 0 4px 14px rgba(37,99,235,.1);
+    }
+    ul.catalog-list .cat-t {
+      font-weight: 600;
+      font-size: 1.02rem;
+      color: var(--text);
+    }
+    ul.catalog-list a:hover .cat-t { color: #1d4ed8; }
+    ul.catalog-list .cat-f {
+      font-size: .78rem;
+      color: var(--muted);
+      font-family: ui-monospace, Consolas, monospace;
+      background: var(--surface2);
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+  </style>
+</head>
+<body>
+<header>
+  <h1>ELBO</h1>
+  
+</header>
+  <nav class="site-back"><a href="index.html">← 本文件夹目录</a></nav>
+<main class="md-content">
+<h3>ELBO</h3>
+<h4>问题引入</h4>
+<p>对于一个生成式模型，通常被建模为</p>
+<p>$$min_\theta\mathbb{E}_{x\sim p_{data}}[KL(p_{data}(x)\|p_\theta(x))]=min_\theta\mathbb{E}_{x\sim p_{data}}[log\frac{p_{data}(x)}{p_\theta(x)}]$$</p>
+<p>$$min_\theta\mathbb{E}_{x\sim p_{data}}[KL(p_{data}(x)\|p_\theta(x))]\Leftrightarrow max_{\theta}\mathbb{E}_{x\sim p_{data}}[logp_\theta(x)]$$</p>
+<p>即在数据分布中进行采样并且学习参数$\theta$估计采样出来的数据的对数似然最大
+而为了实现"生成"的目的,往往需要假设随机变量$x$与某些隐藏的分布比较简单的随机变量$z$相关,这样我们就可以通过先根据$p(z)$采样$z$,再根据$p(x\mid z)$采样可以得到$x$</p>
+<p>优化问题变为</p>
+<p>$$max_{\theta}\mathbb{E}_{x\sim p_{data}}[log\int p_\theta(x,z)dz] \tag{1}$$</p>
+<h4>问题求解</h4>
+<h5>简单蒙特卡洛估计</h5>
+<p>对于$(1)$,一个直觉的想法是直接对$z$进行采样,然后用蒙特卡洛估计来近似目标函数</p>
+<p>$$\mathbb{E}_{x\sim p_{data}}[log\int p_\theta(x,z)dz] = \mathbb{E}_{x\sim p_{data}}[log\int p_\theta(x\mid z)p(z)dz] \approx \frac{1}{N(x)}\frac{1}{N(z)}\sum_{x\sim p_{data}}\sum_{z\sim p} logp_\theta(x\mid z)$$</p>
+<p>但是这个不是一个无偏估计</p>
+<p>$$\mathbb{E}_{x\sim p_{data}}[log\int p_\theta(x\mid z)p(z)dz]=\mathbb{E}_{x\sim p_{data}}[log \mathbb{E}_{z\sim p}[p_\theta(x\mid z)]] \geq \mathbb{E}_{x\sim p_{data},z\sim p}[log p_\theta(x\mid z)]$$</p>
+<p>另一个想法,先估计内层期望,再估计外层期望</p>
+<p>$$\mathbb{E}_{x\sim p_{data}}[log\int p_\theta(x,z)dz] = \mathbb{E}_{x\sim p_{data}}[log\int p_\theta(x\mid z)p(z)dz] \approx \frac{1}{N(x)}\sum_{x\sim p_{data}} log\frac{1}{N(z)}\sum_{z\sim p}p_\theta(x\mid z)$$</p>
+<p>但是当$z$采样次数无法达到无穷时,内层得到的始终不是真实的期望,最终得到的只是一个渐进的无偏估计</p>
+<h6>衡量蒙特卡洛的偏差程度</h6>
+<p>$$\mathbb{E}_{x\sim p_{data}}[log\int p_\theta(x\mid z)p(z)dz]=\mathbb{E}_{x\sim p_{data}}[log \mathbb{E}_{z\sim p}[p_\theta(x\mid z)]] \geq \mathbb{E}_{x\sim p_{data},z\sim p}[log p_\theta(x\mid z)]$$</p>
+<p>考虑二者相减得到偏差的程度</p>
+<p>$$\mathbb{E}_{x\sim p_{data}}[log\int p_\theta(x\mid z)p(z)dz]-\mathbb{E}_{x\sim p_{data},z\sim p}[log p_\theta(x\mid z)]$$</p>
+<p>$$=\mathbb{E}_{x\sim p_{data}}[\int p(z)[logp_\theta(x)-logp_\theta(x\mid z)]dz]$$</p>
+<p>$$=\mathbb{E}_{x\sim p_{data},z\sim p}[log\frac{p_\theta(x)}{p_\theta(x\mid z)}]=\mathbb{E}_{x\sim p_{data},z\sim p}[log\frac{p(z)}{p_\theta(z\mid x)}]$$</p>
+<p>$$=\mathbb{E}_{x\sim p_{data},z\sim p}[KL(p(z)\|p_\theta(z\mid x))]$$</p>
+<p>即偏差项为$p(z)$和$p_\theta(z\mid x)$的$KL$散度
+由于$p_\theta(z\mid x)$可能非常复杂而导致$KL$项很大,问题难以优化
+此外,对$p(z)$在整个分布空间进行采样会导致采样到很多低概率的点,采样效率很低,需要的样本数量极大增加</p>
+<h5>重要性采样和变分推断</h5>
+<p>由于直接从整个分布空间进行采样效果很差,考虑采样某些比较重要的$z$(出现频率高),将新的分布记为$q(z)$</p>
+<p>$$\mathbb{E}_{x\sim p_{data}}[log\int p_\theta(x,z)dz]=\mathbb{E}_{x\sim p_{data}}[log\int q(z)\frac{p_\theta(x,z)}{q(z)}dz]$$</p>
+<p>由琴生不等式</p>
+<p>$$\mathbb{E}_{x\sim p_{data}}[log\int q(z)\frac{p_\theta(x,z)}{q(z)}dz] \geq \mathbb{E}_{x\sim p_{data}}[\int q(z)log\frac{p_\theta(x,z)}{q(z)}dz]=\mathbb{E}_{x\sim p_{data},z\sim q}[log\frac{p_\theta(x,z)}{q(z)}]$$</p>
+<p>得到$ELBO$不等式
+误差项为</p>
+<p>$$\mathbb{E}_{x\sim p_{data}}[log p_\theta(x)]-\mathbb{E}_{x\sim p_{data},z\sim q}[log\frac{p_\theta(x,z)}{q(z)}]=\mathbb{E}_{x\sim p_{data},z\sim q}[KL(q(z)\|p_\theta(z\mid x))]$$</p>
+<p>(看起来和前面好像没啥区别,但是如果$p(z)$为了方便采样通常是一个很简单的分布,但是$q(z)$可以通过构造或者神经网络拟合增加复杂度从而拟合更加复杂的分布,对$q(z)$的不同建模可以引出不同的算法)</p>
+<h5>VAE</h5>
+<p>VAE的$q(z)$定义为一个参数待学习的高斯分布$\mathcal{N}(\mu,\sigma^2\mathcal{I}),$其中的$\mu,\sigma$用神经网络来拟合,同时为了引入$x,z$的关系,神经网络建模为$q_\phi(z\mid x)$,$p(z)$则建模为$\mathcal{N}(0,1)$
+则问题变为</p>
+<p>$$\mathbb{E}_{x\sim p_{data}}[log p_\theta(x)]=\mathbb{E}_{x\sim p_{data},z\sim q_\phi}[log\frac{p_\theta(x,z)}{q_\phi(z\mid x)}]+\mathbb{E}_{x\sim p_{data},z\sim q_\phi}[KL(q_\phi(z)\|p_\theta(z\mid x))]$$</p>
+<p>我们主要优化$ELBO$下界$\mathbb{E}_{x\sim p_{data},z\sim q_\phi}[log\frac{p_\theta(x,z)}{q_\phi(z\mid x)}]=\mathbb{E}_{x\sim p_{data},z\sim q_\phi}[logp_\theta(x\mid z)p(z)-logq_\phi(z\mid x)]=\mathbb{E}_{x\sim p_{data}}[logp_\theta(x\mid z)]-\mathbb{E}_{x\sim p_{data}}[logq_\phi(z\mid x)-logp(z)]$
+故损失函数</p>
+<p>$$Loss = \mathbb{E}_{x\sim p_{data}}[-logp_\theta(x\mid z)]+\mathbb{E}_{x\sim p_{data}}[KL(q_\phi(z\mid x)\|p(z))]$$</p>
+<p>直观理解:
+前一项为最大化$p_\theta(x\mid z)$的对数似然,相当于希望模型生成内容和实际内容保持一致,第二项为概率散度,相当于希望模型尽量拟合$p(z)$
+而$ELBO$和原目标的gap相当于希望$q$还能尽可能拟合$p_\theta(z\mid x)$</p>
+<h6>实际操作</h6>
+<p>我们需要学习两个判别式网络,先要学习从$x$到$z$,然后还要学习从$z$到$x$
+这类似于一个自编码器,所以VAE全称为 Variational AutoEncoder(变分自编码器)</p>
+<p>具体的数据流向
+先从数据中采样$x_0$,经过$q_\phi$得到$\mu_0,\sigma_0$表示$q_\phi(z\mid x) \approx \mathcal{N}(\mu_0,\sigma_0)$,然后从$\mathcal{N}(\mu_0,\sigma_0)$采样得到一个$z_0$,计算$log\frac{\mathcal{N}(x_0,\mu_0,\sigma_0)}{\mathcal{N}(x_0,\mathbf{0},\mathbf{I})}$得到KL损失
+假设$x$服从某个带参的分布,
+然后$z_0$经过$p_\theta$网络得到分布的参数,并计算$-logp_\theta(x\mid z)$得到重构项</p>
+<p>如果假设$x$的各个元素之间相互独立且服从高斯分布
+则$-log(x\mid z) = -log\frac{1}{\sqrt{2\pi\sigma^2}}exp(-\frac{\|x-\mu_\theta(z)\|^2}{2\sigma^2})$
+$-log(x\mid z) \propto \|x-\mu_\theta(z)\|^2$
+得到均方误差损失
+如果假设$x$是$0,1$数据且各个元素服从</p>
+<p>$$p_\theta(x_i \mid z) = y_i(z)^{x_i}(1-y_i(z))^{1-x_i}$$</p>
+<p>则得到交叉熵损失</p>
+<p>$$-logp_\theta(x_i\mid z) = x_ilogy_i(z) + (1-x_i)log(1-y_i(z))$$</p>
+<h6>梯度问题</h6>
+<p>由于中间的$z_0$是采样得到的,导致实际计算过程中到这里梯度会直接断掉,通常使用重参数化技巧来解决这个问题,保持$\mu_\theta,\sigma_\theta$的梯度,而从$\mathcal{N}(\mathcal{0},\mathcal{I})$中采样一个随机变量$\epsilon$,得到</p>
+<p>$$z_0 = \mu_\theta + \sigma_\theta \epsilon$$</p>
+<p>这和直接采样得到的$z_0$分布一致,但是梯度可以正常传递</p>
+<h5>DDPM</h5>
+<p>DDPM 不使用神经网络来拟合$q_\phi$,而是直接定义了从$x$到$z$的分布$q(z\mid x)$,而且该分布可以解析的求解$q(x \mid z)$,则只需要用一个神经网络去拟合$q(x\mid z)$即可</p>
+<h6>扩散过程</h6>
+<p>DDPM 假设因变量$z$为一系列的$x_1,x_2,...x_T$,设原数据为$x_0$,$x_i$为$x_{i-1}$通过一步高斯加噪获得,即$x_0$通过逐渐加噪最终得到一个完全高斯分布$x_T$,神经网络需要学习的是这个逆向过程
+问题变为</p>
+<p>$$logp_\theta(x_0) = \mathbb{E}_{x_{1:T}\sim q(x_{1:T}\mid x_0)}[\frac{p_\theta(x_{0:T})}{q(x_{1:T}\mid x_0)}] + KL(q(x_{1:T}\mid x_0)\| p_\theta(x_{1:T}\mid x_0))$$</p>
+<p>这里的$KL$项可以理解为如果$p_\theta$逆向过程学习的比较好的话,对应的前向过程也应该会比较小</p>
+<p>优化目标变为</p>
+<p>$$\mathbb{E}_{x_{1:T}\sim q(x_{1:T}\mid x_0)}[\frac{p_\theta(x_{0:T})}{q(x_{1:T}\mid x_0)}]$$</p>
+<p>$q(x_{1:T} \mid x_0)$是前向过程的概率,为了让神经网络学习反向过程的概率需要用贝叶斯公式进行变换</p>
+<p>$$q(x_{1:T}\mid x_0) = q(x_1\mid x_0)\prod_{t=1}^{T-1} q(x_{t+1}\mid x_t,x_0)$$</p>
+<p>$$=q(x_0 \mid x_1)\frac{q(x_1)}{q(x_0)}\prod_{t=1}^{T-1}q(x_t \mid x_{t+1},x_0)\frac{q(x_{t+1}\mid x_0)}{q(x_t \mid x_0)}$$</p>
+<p>$$=q(x_T\mid x_0)\prod_{t=1}^{T-1}q(x_t\mid x_{t+1},x_0)$$</p>
+<p>$$p_\theta(x_{0:T})= \prod_{t=1}^{T-1}p_\theta(x_t \mid x_{t+1})p_\theta(x_0 \mid x_1)p_\theta(x_T)$$</p>
+<p>则优化目标变为</p>
+<p>$$\sum_{t=1}^{T-1}\mathbb{E}_{x_t,x_{t+1}\sim q(x_t,x_{t+1}\mid x_0)}[\frac{p_\theta(x_t \mid x_{t+1})}{q(x_t \mid x_{t+1},x_0)}] + \mathbb{E}_{x_T\sim q(x_T \mid x_0)}[\frac{q(x_0\mid x_1)}{p_\theta(x_T)}] + \mathbb{E}_{x_1\sim q(x_1\mid x_0)}[p_\theta(x_0 \mid x_1)]$$</p>
+<p>第一项是为了让神经网络学习方向过程刻意对齐的项,后面两项是多余的项
+其中</p>
+<p>$$\mathbb{E}_{x_T\sim q(x_T \mid x_0)}[\frac{q(x_0\mid x_1)}{p_\theta(x_T)}]$$</p>
+<p>和学习反向过程无关通常直接忽略,其余两项都表示从后向前学习一个状态</p>
+<h6>分布$q$的定义</h6>
+<h5>TODO</h5>
+<p>完善DDPM 损失函数和具体计算过程
+discrete mask llm</p>
+</main>
+</body>
+</html>

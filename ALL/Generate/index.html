@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generate</title>
+  <script>
+    MathJax = {
+      loader: {
+        load: ['[tex]/textmacros']
+      },
+      tex: {
+        packages: {'[+]': ['textmacros']},
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        tags: 'none',
+        macros: {
+          piold: '\\pi_{\\theta_\\mathrm{old}}',
+          pinew: '\\pi_{\\theta}'
+        }
+      },
+      options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] }
+    };
+  </script>
+  <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+  <style>
+
+    :root {
+      --bg:       #e8f2fc;
+      --surface:  #e4eef9;
+      --surface2: #d7e8f8;
+      --border:   #a8c8ef;
+      --c1: #2563eb;
+      --c5: #0284c7;
+      --text:  #1e3a5f;
+      --muted: #4a6fa5;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background:
+        radial-gradient(ellipse 120% 80% at 50% -20%, rgba(147,197,253,.35), transparent 55%),
+        var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      line-height: 1.7;
+      padding: 2.5rem 1.5rem 4rem;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 2.2rem;
+      max-width: min(1920px, 98vw);
+      margin-left: auto;
+      margin-right: auto;
+    }
+    header h1 {
+      font-size: 1.85rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--c1) 0%, var(--c5) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: .02em;
+    }
+    header .subtitle {
+      color: var(--muted);
+      margin-top: .45rem;
+      font-size: .9rem;
+    }
+
+    /* ── 正文（无表格或表格前后混排）── */
+    main.md-content {
+      max-width: min(1920px, 98vw);
+      margin: 0 auto;
+      padding: 1.2rem 0 2rem;
+      font-size: .95rem;
+      line-height: 1.75;
+      color: var(--text);
+    }
+    .md-content > *:first-child { margin-top: 0; }
+    .md-content h1 {
+      font-size: 1.55rem;
+      margin: 1.4em 0 0.55em;
+      color: #1e3a8a;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: .35rem;
+    }
+    .md-content h2 {
+      font-size: 1.28rem;
+      margin: 1.25em 0 0.5em;
+      color: #1d4ed8;
+    }
+    .md-content h3 {
+      font-size: 1.1rem;
+      margin: 1.1em 0 0.45em;
+      color: #2563eb;
+    }
+    .md-content h4, .md-content h5, .md-content h6 {
+      margin: 1em 0 0.4em;
+      color: var(--text);
+    }
+    .md-content p { margin: 0.65em 0; }
+    .md-content ul, .md-content ol {
+      margin: 0.6em 0 0.6em 1.35rem;
+    }
+    .md-content li { margin: 0.35em 0; }
+    .md-content li::marker { color: var(--c5); }
+    .md-content a {
+      color: #0369a1;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(3,105,161,.35);
+    }
+    .md-content a:hover {
+      color: #0c4a6e;
+      border-bottom-color: #0c4a6e;
+    }
+    .md-content blockquote {
+      margin: 1rem 0;
+      padding: .65rem 1rem .65rem 1rem;
+      border-left: 4px solid var(--c1);
+      background: color-mix(in srgb, var(--c1) 6%, var(--surface));
+      border-radius: 0 var(--radius) var(--radius) 0;
+      color: #2c4a6e;
+    }
+    .md-content blockquote p { margin: 0.4em 0; }
+    .md-content code {
+      font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+      font-size: .88em;
+      background: var(--surface2);
+      padding: .12em .4em;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+    .md-content pre {
+      margin: 1rem 0;
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 2px 8px rgba(37,99,235,.06);
+    }
+    .md-content pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: .84rem;
+      line-height: 1.55;
+    }
+    .md-content hr {
+      border: none;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 2rem 0;
+    }
+    .md-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .md-content mjx-container[display="true"] {
+      margin: 0.65em 0 !important;
+    }
+
+    /* ── Markdown 表格（GFM）── */
+    .tbl-wrap {
+      margin: 1.25rem auto;
+      overflow-x: auto;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow:
+        0 4px 6px -1px rgba(30,58,95,.06),
+        0 12px 28px -4px rgba(37,99,235,.12);
+    }
+    .tbl-wrap-md table.md-table {
+      width: 100%;
+      min-width: min(100%, max-content);
+      border-collapse: collapse;
+      background: var(--surface);
+      font-size: .88rem;
+    }
+    .tbl-wrap-md thead tr { background: var(--surface2); }
+    .tbl-wrap-md th {
+      padding: .55rem .75rem;
+      text-align: left;
+      font-weight: 700;
+      font-size: .78rem;
+      letter-spacing: .04em;
+      color: var(--muted);
+      border-bottom: 2px solid var(--border);
+      vertical-align: top;
+    }
+    .tbl-wrap-md td {
+      padding: .5rem .75rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+      line-height: 1.55;
+    }
+    .tbl-wrap-md tbody tr {
+      transition: background .12s;
+    }
+    .tbl-wrap-md tbody tr:hover {
+      background: rgba(219,234,254,.4);
+    }
+    .tbl-wrap-md tbody tr:last-child td { border-bottom: none; }
+    .tbl-wrap-md .formula-cell { overflow-x: auto; }
+    .tbl-wrap-md .formula-cell mjx-container[display="true"] {
+      margin: 0.2em 0 !important;
+    }
+
+    /* 文末脚注块（若用 blockquote 模拟）*/
+    .md-content > blockquote:last-of-type {
+      margin-top: 2rem;
+    }
+
+    /* ── 子页返回目录 ── */
+    nav.site-back {
+      max-width: min(1920px, 98vw);
+      margin: -0.8rem auto 1.25rem;
+      padding: 0 0.15rem;
+      font-size: .88rem;
+    }
+    nav.site-back a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      color: #0369a1;
+      text-decoration: none;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(3,105,161,.3);
+      padding-bottom: 0.1rem;
+    }
+    nav.site-back a:hover {
+      color: #0c4a6e;
+      border-bottom-color: #0c4a6e;
+    }
+
+    /* ── 批量目录页 ── */
+    .catalog-main { padding-top: 0.5rem; }
+    .catalog-hint {
+      color: var(--muted);
+      font-size: .88rem;
+      margin-bottom: 1.1rem !important;
+    }
+    ul.catalog-list {
+      list-style: none;
+      margin: 0 !important;
+      padding: 0 !important;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+    ul.catalog-list li {
+      margin: 0 !important;
+    }
+    ul.catalog-list a {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      padding: 0.75rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 2px 6px rgba(37,99,235,.05);
+      text-decoration: none !important;
+      border-bottom: 1px solid var(--border) !important;
+      transition: background .15s, box-shadow .15s, border-color .15s;
+    }
+    ul.catalog-list a:hover {
+      background: #dbeafe;
+      border-color: #93c5fd !important;
+      box-shadow: 0 4px 14px rgba(37,99,235,.1);
+    }
+    ul.catalog-list .cat-t {
+      font-weight: 600;
+      font-size: 1.02rem;
+      color: var(--text);
+    }
+    ul.catalog-list a:hover .cat-t { color: #1d4ed8; }
+    ul.catalog-list .cat-f {
+      font-size: .78rem;
+      color: var(--muted);
+      font-family: ui-monospace, Consolas, monospace;
+      background: var(--surface2);
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+  </style>
+</head>
+<body>
+<header>
+  <h1>Generate</h1>
+  <p class="subtitle">子目录 · ALL/Generate</p>
+</header>
+  <nav class="site-back"><a href="../index.html">← 上一级</a></nav>
+<main class="md-content catalog-main">
+<p class="catalog-hint">本文件夹内的页面与子文件夹。</p>
+<p><strong>页面</strong></p>
+<ul class="catalog-list">
+    <li><a href="ELBO.html"><span class="cat-t">ELBO</span><code class="cat-f">ELBO.html</code></a></li>
+</ul>
+</main>
+</body>
+</html>

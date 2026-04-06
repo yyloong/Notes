@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RL Policy Optimization — Algorithm Comparison</title>
+  <script>
+    MathJax = {
+      loader: {
+        load: ['[tex]/textmacros']
+      },
+      tex: {
+        packages: {'[+]': ['textmacros']},
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        tags: 'none',
+        macros: {
+          piold: '\\pi_{\\theta_\\mathrm{old}}',
+          pinew: '\\pi_{\\theta}'
+        }
+      },
+      options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] }
+    };
+  </script>
+  <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+  <style>
+
+    :root {
+      --bg:       #e8f2fc;
+      --surface:  #e4eef9;
+      --surface2: #d7e8f8;
+      --border:   #a8c8ef;
+      --c1: #2563eb;
+      --c5: #0284c7;
+      --text:  #1e3a5f;
+      --muted: #4a6fa5;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background:
+        radial-gradient(ellipse 120% 80% at 50% -20%, rgba(147,197,253,.35), transparent 55%),
+        var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      line-height: 1.7;
+      padding: 2.5rem 1.5rem 4rem;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 2.2rem;
+      max-width: min(1920px, 98vw);
+      margin-left: auto;
+      margin-right: auto;
+    }
+    header h1 {
+      font-size: 1.85rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--c1) 0%, var(--c5) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: .02em;
+    }
+    header .subtitle {
+      color: var(--muted);
+      margin-top: .45rem;
+      font-size: .9rem;
+    }
+
+    /* ── 正文（无表格或表格前后混排）── */
+    main.md-content {
+      max-width: min(1920px, 98vw);
+      margin: 0 auto;
+      padding: 1.2rem 0 2rem;
+      font-size: .95rem;
+      line-height: 1.75;
+      color: var(--text);
+    }
+    .md-content > *:first-child { margin-top: 0; }
+    .md-content h1 {
+      font-size: 1.55rem;
+      margin: 1.4em 0 0.55em;
+      color: #1e3a8a;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: .35rem;
+    }
+    .md-content h2 {
+      font-size: 1.28rem;
+      margin: 1.25em 0 0.5em;
+      color: #1d4ed8;
+    }
+    .md-content h3 {
+      font-size: 1.1rem;
+      margin: 1.1em 0 0.45em;
+      color: #2563eb;
+    }
+    .md-content h4, .md-content h5, .md-content h6 {
+      margin: 1em 0 0.4em;
+      color: var(--text);
+    }
+    .md-content p { margin: 0.65em 0; }
+    .md-content ul, .md-content ol {
+      margin: 0.6em 0 0.6em 1.35rem;
+    }
+    .md-content li { margin: 0.35em 0; }
+    .md-content li::marker { color: var(--c5); }
+    .md-content a {
+      color: #0369a1;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(3,105,161,.35);
+    }
+    .md-content a:hover {
+      color: #0c4a6e;
+      border-bottom-color: #0c4a6e;
+    }
+    .md-content blockquote {
+      margin: 1rem 0;
+      padding: .65rem 1rem .65rem 1rem;
+      border-left: 4px solid var(--c1);
+      background: color-mix(in srgb, var(--c1) 6%, var(--surface));
+      border-radius: 0 var(--radius) var(--radius) 0;
+      color: #2c4a6e;
+    }
+    .md-content blockquote p { margin: 0.4em 0; }
+    .md-content code {
+      font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+      font-size: .88em;
+      background: var(--surface2);
+      padding: .12em .4em;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+    .md-content pre {
+      margin: 1rem 0;
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 2px 8px rgba(37,99,235,.06);
+    }
+    .md-content pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: .84rem;
+      line-height: 1.55;
+    }
+    .md-content hr {
+      border: none;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 2rem 0;
+    }
+    .md-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .md-content mjx-container[display="true"] {
+      margin: 0.65em 0 !important;
+    }
+
+    /* ── Markdown 表格（GFM）── */
+    .tbl-wrap {
+      margin: 1.25rem auto;
+      overflow-x: auto;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow:
+        0 4px 6px -1px rgba(30,58,95,.06),
+        0 12px 28px -4px rgba(37,99,235,.12);
+    }
+    .tbl-wrap-md table.md-table {
+      width: 100%;
+      min-width: min(100%, max-content);
+      border-collapse: collapse;
+      background: var(--surface);
+      font-size: .88rem;
+    }
+    .tbl-wrap-md thead tr { background: var(--surface2); }
+    .tbl-wrap-md th {
+      padding: .55rem .75rem;
+      text-align: left;
+      font-weight: 700;
+      font-size: .78rem;
+      letter-spacing: .04em;
+      color: var(--muted);
+      border-bottom: 2px solid var(--border);
+      vertical-align: top;
+    }
+    .tbl-wrap-md td {
+      padding: .5rem .75rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+      line-height: 1.55;
+    }
+    .tbl-wrap-md tbody tr {
+      transition: background .12s;
+    }
+    .tbl-wrap-md tbody tr:hover {
+      background: rgba(219,234,254,.4);
+    }
+    .tbl-wrap-md tbody tr:last-child td { border-bottom: none; }
+    .tbl-wrap-md .formula-cell { overflow-x: auto; }
+    .tbl-wrap-md .formula-cell mjx-container[display="true"] {
+      margin: 0.2em 0 !important;
+    }
+
+    /* 文末脚注块（若用 blockquote 模拟）*/
+    .md-content > blockquote:last-of-type {
+      margin-top: 2rem;
+    }
+
+    /* ── 子页返回目录 ── */
+    nav.site-back {
+      max-width: min(1920px, 98vw);
+      margin: -0.8rem auto 1.25rem;
+      padding: 0 0.15rem;
+      font-size: .88rem;
+    }
+    nav.site-back a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      color: #0369a1;
+      text-decoration: none;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(3,105,161,.3);
+      padding-bottom: 0.1rem;
+    }
+    nav.site-back a:hover {
+      color: #0c4a6e;
+      border-bottom-color: #0c4a6e;
+    }
+
+    /* ── 批量目录页 ── */
+    .catalog-main { padding-top: 0.5rem; }
+    .catalog-hint {
+      color: var(--muted);
+      font-size: .88rem;
+      margin-bottom: 1.1rem !important;
+    }
+    ul.catalog-list {
+      list-style: none;
+      margin: 0 !important;
+      padding: 0 !important;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+    ul.catalog-list li {
+      margin: 0 !important;
+    }
+    ul.catalog-list a {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      padding: 0.75rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 2px 6px rgba(37,99,235,.05);
+      text-decoration: none !important;
+      border-bottom: 1px solid var(--border) !important;
+      transition: background .15s, box-shadow .15s, border-color .15s;
+    }
+    ul.catalog-list a:hover {
+      background: #dbeafe;
+      border-color: #93c5fd !important;
+      box-shadow: 0 4px 14px rgba(37,99,235,.1);
+    }
+    ul.catalog-list .cat-t {
+      font-weight: 600;
+      font-size: 1.02rem;
+      color: var(--text);
+    }
+    ul.catalog-list a:hover .cat-t { color: #1d4ed8; }
+    ul.catalog-list .cat-f {
+      font-size: .78rem;
+      color: var(--muted);
+      font-family: ui-monospace, Consolas, monospace;
+      background: var(--surface2);
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+  </style>
+</head>
+<body>
+<header>
+  <h1>RL Policy Optimization — Algorithm Comparison</h1>
+  
+</header>
+  <nav class="site-back"><a href="index.html">← 本文件夹目录</a></nav>
+<main class="md-content">
+
+<div class="tbl-wrap tbl-wrap-md"><table class="md-table">
+<thead>
+<tr>
+<th class="formula-cell">Intuition</th>
+<th class="formula-cell">Algorithm</th>
+<th class="formula-cell">Advantage $\hat{A}$</th>
+<th class="formula-cell">IS Ratio $s(\theta)$</th>
+<th class="formula-cell">Loss Function</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="formula-cell"><strong><em>🔹 Token-level Action</em></strong></td>
+<td class="formula-cell"></td>
+<td class="formula-cell"></td>
+<td class="formula-cell"></td>
+<td class="formula-cell"></td>
+</tr>
+<tr>
+<td class="formula-cell">TODO</td>
+<td class="formula-cell"><strong>PPO</strong></td>
+<td class="formula-cell">$\hat{A}_{i,t}^{\text{GAE}(\gamma,\lambda)}=\displaystyle\sum_{l=0}^{\infty}(\lambda\gamma)^{l}\delta_{i,t+l}$ <br/><br/> $\delta_{i,l}=r_{i,l}+\gamma V(y_{i,\leq l+1})-V(y_{i,\leq l})$</td>
+<td class="formula-cell">$s_{i,t}(\theta)=\dfrac{\pi_{\theta}(y_{i,t}\mid x,\,y_{i,{&lt;}t})}{\pi_{\theta_{\text{old}}}(y_{i,t}\mid x,\,y_{i,{&lt;}t})}$</td>
+<td class="formula-cell">$\mathbb{E}_{x\sim\mathcal{D},\,y\sim\pi_{\text{old}}}\!\Big[\min\!\big(s_{i,t}(\theta)\hat{A}_{i,t},\;\text{clip}(s_{i,t}(\theta),1{-}\epsilon,1{+}\epsilon)\hat{A}_{i,t}\big)\Big]$</td>
+</tr>
+<tr>
+<td class="formula-cell">TODO</td>
+<td class="formula-cell"><strong>GRPO</strong></td>
+<td class="formula-cell">$\hat{A}_{i,t}=\dfrac{r_{i,t}-\text{mean}(\{r_{i,t}\}_{i=1}^{G})}{\text{std}(\{r_{i,t}\}_{i=1}^{G})},\quad r_{i,t}=R(x,y_{i,t})$</td>
+<td class="formula-cell">$s_{i,t}(\theta)=\dfrac{\pi_{\theta}(y_{i,t}\mid x,\,y_{i,{&lt;}t})}{\pi_{\theta_{\text{old}}}(y_{i,t}\mid x,\,y_{i,{&lt;}t})}$</td>
+<td class="formula-cell">$\mathbb{E}_{x\sim\mathcal{D},\,y\sim\pi_{\text{old}}}\!\left[\dfrac{1}{G}\displaystyle\sum_{i=1}^{G}\dfrac{1}{\lvert y_i\rvert}\sum_{t=1}^{\lvert y_i\rvert}\min\!\big(s_{i,t}(\theta)\hat{A}_{i,t},\;\text{clip}(s_{i,t}(\theta),1{-}\epsilon,1{+}\epsilon)\hat{A}_{i,t}\big)\right]$</td>
+</tr>
+<tr>
+<td class="formula-cell">TODO</td>
+<td class="formula-cell"><strong>DAPO</strong></td>
+<td class="formula-cell">$\hat{A}_{i,t}=\dfrac{r_{i,t}-\text{mean}(\{r_{i,t}\}_{i=1}^{G})}{\text{std}(\{r_{i,t}\}_{i=1}^{G})}$</td>
+<td class="formula-cell">$s_{i,t}(\theta)=\dfrac{\pi_{\theta}(y_{i,t}\mid x,\,y_{i,{&lt;}t})}{\pi_{\theta_{\text{old}}}(y_{i,t}\mid x,\,y_{i,{&lt;}t})}$</td>
+<td class="formula-cell">$\mathbb{E}_{x\sim\mathcal{D},\,y\sim\pi_{\text{old}}}\!\left[\dfrac{1}{\sum_{i=1}^{G}\lvert y_i\rvert}\displaystyle\sum_{i=1}^{G}\sum_{t=1}^{\lvert y_i\rvert}\min\!\big(s_{i,t}(\theta)\hat{A}_{i,t},\;\text{clip}(s_{i,t}(\theta),1{-}\epsilon_{\text{low}},1{+}\epsilon_{\text{high}})\hat{A}_{i,t}\big)\right]$ <br/><br/> $\text{s.t.}\quad 0&lt;\lvert\{y_i\mid\text{is\_equiv}(y_i,\text{ans}_i)\}\rvert&lt;G$</td>
+</tr>
+<tr>
+<td class="formula-cell">TODO</td>
+<td class="formula-cell"><strong>FIPO</strong></td>
+<td class="formula-cell">$\Delta\log p_k=\log\dfrac{\pi_{\theta}(y_k\mid x,y_{{&lt;}k})}{\pi_{\text{old}}(y_k\mid x,y_{{&lt;}k})}$ <br/><br/> $\text{FKL}_t=\displaystyle\sum_{k=t}^{T}\mathbb{I}\!\left(\dfrac{\pi_{\theta}(y_k\mid x,y_{{&lt;}k})}{\pi_{\text{old}}(y_k\mid x,y_{{&lt;}k})}\leq c\right)\gamma^{k-t}\Delta\log p_k$ <br/><br/> $\hat{A}_{i,t}=\dfrac{r_{i,t}-\text{mean}(\{r_{i,t}\}_{i=1}^G)}{\text{std}(\{r_{i,t}\}_{i=1}^G)}\cdot\mathrm{clip}\!\left(\exp(\text{FKL}_{i,t}),1-\epsilon_{f_{\text{low}}},1+\epsilon_{f_{\text{high}}}\right)$</td>
+<td class="formula-cell">$s_{i,t}(\theta)=\dfrac{\pi_{\theta}(y_{i,t}\mid x,\,y_{i,{&lt;}t})}{\pi_{\theta_{\text{old}}}(y_{i,t}\mid x,\,y_{i,{&lt;}t})}$</td>
+<td class="formula-cell">$\mathbb{E}_{x\sim\mathcal{D},\,y\sim\pi_{\text{old}}}\!\left[\dfrac{1}{\sum_{i=1}^{G}\lvert y_i\rvert}\displaystyle\sum_{i=1}^{G}\sum_{t=1}^{\lvert y_i\rvert}\min\!\big(s_{i,t}(\theta)\hat{A}_{i,t},\;\text{clip}(s_{i,t}(\theta),1{-}\epsilon_{\text{low}},1{+}\epsilon_{\text{high}})\hat{A}_{i,t}\big)\right]$</td>
+</tr>
+<tr>
+<td class="formula-cell"><strong><em>🔷 Sequence / Step-level Action</em></strong></td>
+<td class="formula-cell"></td>
+<td class="formula-cell"></td>
+<td class="formula-cell"></td>
+<td class="formula-cell"></td>
+</tr>
+<tr>
+<td class="formula-cell">TODO</td>
+<td class="formula-cell"><strong>GSPO</strong></td>
+<td class="formula-cell">$\hat{A}_{i}=\dfrac{r_{i}-\text{mean}(\{r_{i}\}_{i=1}^{G})}{\text{std}(\{r_{i}\}_{i=1}^{G})},\quad r_i=R(x,y_i)$</td>
+<td class="formula-cell">$s_{i}(\theta)=\!\left(\dfrac{\pi_{\theta}(y_{i}\mid x)}{\pi_{\theta_{\text{old}}}(y_{i}\mid x)}\right)^{\!\frac{1}{\lvert y_i\rvert}}=\exp\!\left(\dfrac{1}{\lvert y_i\rvert}\sum_{t=1}^{\lvert y_i\rvert}\log\dfrac{\pi_{\theta}(y_{i,t}\mid x,\,y_{i,{&lt;}t})}{\pi_{\theta_{\text{old}}}(y_{i,t}\mid x,\,y_{i,{&lt;}t})}\right)$</td>
+<td class="formula-cell">$\mathbb{E}_{x\sim\mathcal{D},\,y\sim\pi_{\text{old}}}\!\left[\dfrac{1}{G}\displaystyle\sum_{i=1}^{G}\min\!\big(s_{i}(\theta)\hat{A}_{i},\;\text{clip}(s_{i}(\theta),1{-}\epsilon,1{+}\epsilon)\hat{A}_{i}\big)\right]$</td>
+</tr>
+<tr>
+<td class="formula-cell">TODO</td>
+<td class="formula-cell"><strong>GiGPO</strong></td>
+<td class="formula-cell"><em>(此处 $t$ 为序列步级，非 token 级)</em> <br/> $\hat{A}_{i,t}=A^E_i+\omega\cdot A^S_{i,t}$ <br/><br/> $A^E_i=\dfrac{r_i-\text{mean}(\{r_i\}_{i=1}^{N})}{\text{std}(\{r_i\}_{i=1}^{N})},\quad r_i=R(x,y_i)$ <br/><br/> $G^S(\bar{s})=\{(y_{j,t'},r_{j,t'})\mid s_{j,t'}=\bar{s},\;1\leq j\leq N,\;1\leq t'\leq T\}$ <br/><br/> $A^S_{i,t}=\dfrac{r_{i,t}-\text{mean}(\{r\mid(\cdot,r)\in G^S(s_{i,t})\})}{F_{\text{norm}}(\{r\mid(\cdot,r)\in G^S(s_{i,t})\})}$</td>
+<td class="formula-cell">$s_{i,t}(\theta)=\dfrac{\pi_{\theta}(y_{i,t}\mid x,\,y_{i,{&lt;}t})}{\pi_{\theta_{\text{old}}}(y_{i,t}\mid x,\,y_{i,{&lt;}t})}$</td>
+<td class="formula-cell">$\mathbb{E}_{x\sim p(X),\,\{\tau_i\}\sim\pi_{\text{old}}}\!\left[\dfrac{1}{NT}\displaystyle\sum_{i=1}^{N}\sum_{t=1}^{T}\min\!\big(s_{i,t}(\theta)\hat{A}_{i,t},\;\text{clip}(s_{i,t}(\theta),1{-}\epsilon,1{+}\epsilon)\hat{A}_{i,t}\big)\right]$</td>
+</tr>
+</tbody>
+</table></div>
+<hr/>
+<blockquote>
+<p><strong>公式校注</strong></p>
+<ul>
+<li><strong>PPO [已修正①]</strong>：GAE 指数 $(\lambda\gamma)^{l+t}$ → $(\lambda\gamma)^{l}$，求和哑变量为 $l$，$t$ 为当前时间步。</li>
+<li><strong>PPO [已修正②]</strong>：TD 误差中 $V(y_{i,\leq l+t})$ → $V(y_{i,\leq l+1})$（下一个 token 位置）。</li>
+<li><strong>FIPO [已修正]</strong>：$\mathbb{I}(\cdot)$ 内条件改为 IS 比值 $\leq c$（截断阈值）；$\hat{A}_{i,t}$ 乘以 $\mathrm{clip}(\exp(\text{FKL}_{i,t}),\cdot)$ 作为 future-aware 加权因子。</li>
+<li><strong>渲染修正</strong>：所有绝对值 $\lvert y_i\rvert$ 改用 <code>\lvert...\rvert</code>（避免裸 <code>|</code> 被 Markdown 解析为列分隔符）；条件概率中的 $y_{i,{&lt;}t}$ 用 <code>{&lt;}</code> 包裹防止被识别为 HTML 标签。</li>
+<li><strong>GRPO/DAPO [说明]</strong>：奖励统一为序列级 $r_i = R(x,y_i)$，与原论文一致。</li>
+<li><strong>GSPO [说明]</strong>：IS ratio 取序列联合概率比的 $\frac{1}{\lvert y_i\rvert}$ 次方，实现长度归一化。</li>
+<li><strong>GiGPO [说明]</strong>：双级优势：$A^E_i$ 为 episode 级 group-relative 优势；$A^S_{i,t}$ 的比较集合 $G^S(s_{i,t})$ 收集<strong>所有轨迹 $j$、所有时间步 $t'$</strong> 中到达同一状态 $s_{i,t}$ 的 (action, reward) 对，而非只比较同一 $t$ 时刻——这是 GiGPO 的核心设计。<strong>注意</strong>：GiGPO 中的 $t$ 是 <strong>序列步（reasoning step/turn）级别</strong>，与其他算法中 token 级别的 $t$ 含义不同。</li>
+</ul>
+</blockquote>
+</main>
+</body>
+</html>
