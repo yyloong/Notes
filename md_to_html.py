@@ -81,11 +81,7 @@ def protect_math(md_text: str) -> tuple[str, list[tuple[str, str]]]:
 
 def _esc_tex_for_html_body(tex: str) -> str:
     """公式插回 HTML 前转义 & < >，避免 BeautifulSoup/浏览器把 0<...<G 等当成标签。"""
-    return (
-        tex.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-    )
+    return tex.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def restore_math(html: str, vault: list[tuple[str, str]]) -> str:
@@ -104,7 +100,11 @@ def wrap_markdown_tables(html: str) -> str:
     soup = BeautifulSoup(html, "html.parser")
     for table in soup.find_all("table"):
         parent = table.parent
-        if parent and parent.name == "div" and "tbl-wrap-md" in (parent.get("class") or []):
+        if (
+            parent
+            and parent.name == "div"
+            and "tbl-wrap-md" in (parent.get("class") or [])
+        ):
             continue
         div = soup.new_tag("div", attrs={"class": "tbl-wrap tbl-wrap-md"})
         table.replace_with(div)
@@ -1626,7 +1626,7 @@ def build_html(
     nav_back_href: str | None = None,
     nav_back_label: str = "← 文档目录",
     main_extra_class: str = "",
-  watermark_text: str = "AI NOTES",
+    watermark_text: str = "AI NOTES",
 ) -> str:
     macros_tex = "," + MATHJAX_MACROS_BLOCK if include_tex_macros else ""
 
@@ -1770,7 +1770,7 @@ def render_page_from_markdown(
         body_html,
         nav_back_href=nav_back_href,
         nav_back_label=nav_back_label,
-      watermark_text=watermark_text,
+        watermark_text=watermark_text,
     )
     return title, full
 
@@ -1795,13 +1795,13 @@ def _dir_tree_has_output(sub_root: Path, all_out: set[Path]) -> bool:
 
 
 def _catalog_li(title: str, href: str) -> str:
-  item_cls = "cat-folder" if href.lower().endswith("/index.html") else "cat-page"
-  return (
-    "<li><a "
-    f'class="{item_cls}" href="{_esc_html(href)}">'
-    f'<span class="cat-t">{_esc_html(title)}</span>'
-    f'<code class="cat-f">{_esc_html(href)}</code></a></li>'
-  )
+    item_cls = "cat-folder" if href.lower().endswith("/index.html") else "cat-page"
+    return (
+        "<li><a "
+        f'class="{item_cls}" href="{_esc_html(href)}">'
+        f'<span class="cat-t">{_esc_html(title)}</span>'
+        f'<code class="cat-f">{_esc_html(href)}</code></a></li>'
+    )
 
 
 def build_folder_catalog_inner_html(
@@ -1875,16 +1875,14 @@ def run_batch(
             folder_index = (md.parent / "index.html").resolve()
             back_label = "← 本文件夹目录"
 
-        back = (
-            _nav_href_from_page(folder_index, out_abs) if add_nav_link else None
-        )
+        back = _nav_href_from_page(folder_index, out_abs) if add_nav_link else None
         title, html = render_page_from_markdown(
             md,
             keep_first_h1=keep_first_h1,
             no_strip_h1=no_strip_h1,
             nav_back_href=back,
             nav_back_label=back_label,
-          watermark_text=watermark_text,
+            watermark_text=watermark_text,
         )
         out_file.parent.mkdir(parents=True, exist_ok=True)
         out_file.write_text(html, encoding="utf-8")
@@ -1911,9 +1909,7 @@ def run_batch(
             cat_sub = site_subtitle
             parent_nav: str | None = None
             parent_lbl = "← 文档目录"
-            hint_txt = (
-                "根目录索引：下列为子文件夹与本目录下的页面；子文件夹内另有各自的 index.html。"
-            )
+            hint_txt = "根目录索引：下列为子文件夹与本目录下的页面；子文件夹内另有各自的 index.html。"
         else:
             catalog_path = folder / "index.html"
             rel = folder.relative_to(dresolved).as_posix()
@@ -1933,34 +1929,34 @@ def run_batch(
 
         subfolder_entries: list[tuple[str, str]] = []
         try:
-          child_dirs = sorted(
-            [p for p in folder.iterdir() if p.is_dir()],
-            key=lambda x: x.as_posix().lower(),
-          )
+            child_dirs = sorted(
+                [p for p in folder.iterdir() if p.is_dir()],
+                key=lambda x: x.as_posix().lower(),
+            )
         except OSError:
-          child_dirs = []
+            child_dirs = []
         for child in child_dirs:
-          if child.resolve() == folder.resolve():
-            continue
-          try:
-            child.resolve().relative_to(dresolved)
-          except ValueError:
-            continue
-          if not _dir_tree_has_output(child.resolve(), all_out):
-            continue
-          child_index = (child / "index.html").resolve()
-          href = Path(os.path.relpath(child_index, start=catalog_dir)).as_posix()
-          title = child.relative_to(folder).as_posix()
-          subfolder_entries.append((title, href))
+            if child.resolve() == folder.resolve():
+                continue
+            try:
+                child.resolve().relative_to(dresolved)
+            except ValueError:
+                continue
+            if not _dir_tree_has_output(child.resolve(), all_out):
+                continue
+            child_index = (child / "index.html").resolve()
+            href = Path(os.path.relpath(child_index, start=catalog_dir)).as_posix()
+            title = child.relative_to(folder).as_posix()
+            subfolder_entries.append((title, href))
 
         page_entries: list[tuple[str, str]] = []
         for out_abs, title, _ in built:
-          try:
-            out_abs.relative_to(folder)
-          except ValueError:
-            continue
-          href = Path(os.path.relpath(out_abs, start=catalog_dir)).as_posix()
-          page_entries.append((title, href))
+            try:
+                out_abs.relative_to(folder)
+            except ValueError:
+                continue
+            href = Path(os.path.relpath(out_abs, start=catalog_dir)).as_posix()
+            page_entries.append((title, href))
 
         page_entries.sort(key=lambda x: (x[0].lower(), x[1]))
         subfolder_entries.sort(key=lambda x: (x[0].lower(), x[1]))
@@ -1977,7 +1973,7 @@ def run_batch(
             nav_back_href=parent_nav,
             nav_back_label=parent_lbl,
             main_extra_class="catalog-main",
-          watermark_text=watermark_text,
+            watermark_text=watermark_text,
         )
         catalog_path.parent.mkdir(parents=True, exist_ok=True)
         catalog_path.write_text(catalog_doc, encoding="utf-8")
@@ -2026,9 +2022,9 @@ def main() -> None:
         help="批量模式：目录页副标题",
     )
     ap.add_argument(
-      "--watermark-text",
-      default="AI NOTES",
-      help="水印文字（右上角艺术字）",
+        "--watermark-text",
+        default="AI NOTES",
+        help="水印文字（右上角艺术字）",
     )
     ap.add_argument(
         "--no-nav-link",
@@ -2070,7 +2066,10 @@ def main() -> None:
     path: Path | None = args.input or args.input_pos
     if path is None:
         ap.print_help()
-        print("\n请指定 --input FILE.md、位置参数 FILE.md，或 --batch DIR", file=sys.stderr)
+        print(
+            "\n请指定 --input FILE.md、位置参数 FILE.md，或 --batch DIR",
+            file=sys.stderr,
+        )
         sys.exit(2)
 
     if not path.is_file():
@@ -2094,7 +2093,7 @@ def main() -> None:
         subtitle=args.subtitle,
         body_html=body_html,
         include_tex_macros=True,
-      watermark_text=args.watermark_text,
+        watermark_text=args.watermark_text,
     )
     out.write_text(full, encoding="utf-8")
     print(f"已写入: {out.resolve()}")
